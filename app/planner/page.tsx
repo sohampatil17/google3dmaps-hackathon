@@ -19,6 +19,16 @@ import { GoogleMap, useLoadScript, MarkerF, DirectionsRenderer } from '@react-go
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 import { Input, Button, Card } from "@nextui-org/react";
 
+// Update the interface for franchise locations
+interface Franchise {
+    name: string;
+    address: string;
+    location: {
+        lat: number;
+        lng: number;
+    };
+}
+
 const McdonaldsGame = () => {
     const [startAddress, setStartAddress] = useState('');
     const [endAddress, setEndAddress] = useState('');
@@ -144,8 +154,39 @@ const McdonaldsGame = () => {
                 });
             }
 
+            // Call our new API endpoint
+            const franchiseResponse = await fetch('/api/mcdonalds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    source: startAddress,
+                    destination: endAddress,
+                    franchise: "McDonald's"
+                })
+            });
+
+            const franchiseData = await franchiseResponse.json();
+
+            if (franchiseData.error) {
+                throw new Error(franchiseData.error);
+            }
+
+            // Convert franchise data to McDonalds type
+            const mcLocations = franchiseData.franchises.map((franchise: Franchise) => ({
+                id: `${franchise.location.lat}-${franchise.location.lng}`,
+                position: {
+                    lat: franchise.location.lat,
+                    lng: franchise.location.lng
+                },
+                name: franchise.name,
+                clicked: false
+            }));
+
+            setMcdonalds(mcLocations);
             setRoute(result);
-            await findMcDonalds(result);
+
         } catch (error) {
             console.error('Error calculating route:', error);
         }
