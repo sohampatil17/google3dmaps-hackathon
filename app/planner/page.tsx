@@ -88,6 +88,7 @@ const McdonaldsGame = () => {
         };
 
         service.nearbySearch(searchRequest, (results, status) => {
+            console.log('Places API Response:', { status, results });
             if (status === google.maps.places.PlacesServiceStatus.OK && results) {
                 const mcLocations = results.slice(0, 10).map(place => ({
                     id: place.place_id!,
@@ -99,44 +100,55 @@ const McdonaldsGame = () => {
                     clicked: false
                 }));
                 setMcdonalds(mcLocations);
+                console.log('Processed McDonald\'s locations:', mcLocations);
             }
         });
     }, [map]);
 
     const calculateRoute = async () => {
-        const directionsService = new google.maps.DirectionsService();
-        const [startResults, endResults] = await Promise.all([
-            getGeocode({ address: startAddress }),
-            getGeocode({ address: endAddress })
-        ]);
+        try {
+            const directionsService = new google.maps.DirectionsService();
 
-        const [startLocation, endLocation] = await Promise.all([
-            getLatLng(startResults[0]),
-            getLatLng(endResults[0])
-        ]);
+            console.log('Geocoding addresses:', { startAddress, endAddress });
+            const [startResults, endResults] = await Promise.all([
+                getGeocode({ address: startAddress }),
+                getGeocode({ address: endAddress })
+            ]);
 
-        const result = await directionsService.route({
-            origin: startLocation,
-            destination: endLocation,
-            travelMode: google.maps.TravelMode.DRIVING
-        });
+            const [startLocation, endLocation] = await Promise.all([
+                getLatLng(startResults[0]),
+                getLatLng(endResults[0])
+            ]);
 
-        // Update polyline with route coordinates
-        const polyline = document.querySelector('gmp-polyline-3d');
-        if (polyline) {
-            customElements.whenDefined(polyline.localName).then(() => {
-                const path = result.routes[0].overview_path;
-                const coordinates = path.map(point => ({
-                    lat: point.lat(),
-                    lng: point.lng()
-                }));
-                // @ts-ignore (coordinates property exists but isn't typed)
-                polyline.coordinates = coordinates;
+            console.log('Geocoded coordinates:', { startLocation, endLocation });
+
+            const result = await directionsService.route({
+                origin: startLocation,
+                destination: endLocation,
+                travelMode: google.maps.TravelMode.DRIVING
             });
-        }
 
-        setRoute(result);
-        await findMcDonalds(result);
+            console.log('Directions API Response:', result);
+
+            // Update polyline with route coordinates
+            const polyline = document.querySelector('gmp-polyline-3d');
+            if (polyline) {
+                customElements.whenDefined(polyline.localName).then(() => {
+                    const path = result.routes[0].overview_path;
+                    const coordinates = path.map(point => ({
+                        lat: point.lat(),
+                        lng: point.lng()
+                    }));
+                    // @ts-ignore (coordinates property exists but isn't typed)
+                    polyline.coordinates = coordinates;
+                });
+            }
+
+            setRoute(result);
+            await findMcDonalds(result);
+        } catch (error) {
+            console.error('Error calculating route:', error);
+        }
     };
 
     const handleMarkerClick = (id: string) => {
