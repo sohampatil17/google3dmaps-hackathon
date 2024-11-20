@@ -154,7 +154,7 @@ const McdonaldsGame = () => {
                 });
             }
 
-            // Call our new API endpoint
+            // Call our API endpoint and use the response
             const franchiseResponse = await fetch('/api/mcdonalds', {
                 method: 'POST',
                 headers: {
@@ -173,7 +173,7 @@ const McdonaldsGame = () => {
                 throw new Error(franchiseData.error);
             }
 
-            // Convert franchise data to McDonalds type
+            // Convert franchise data to McDonalds type and update state
             const mcLocations = franchiseData.franchises.map((franchise: Franchise) => ({
                 id: `${franchise.location.lat}-${franchise.location.lng}`,
                 position: {
@@ -184,7 +184,7 @@ const McdonaldsGame = () => {
                 clicked: false
             }));
 
-            setMcdonalds(mcLocations);
+            setMcdonalds(mcLocations); // This will update the markers on the map
             setRoute(result);
 
         } catch (error) {

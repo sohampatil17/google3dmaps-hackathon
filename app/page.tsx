@@ -1,101 +1,227 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useEffect, useRef } from 'react';
+import Script from 'next/script';
+
+const containerStyle = {
+  width: '100%',
+  height: '80vh'
+};
+
+const mcdonaldsIcon = {
+  path: "M10.5,0C4.7,0,0,4.7,0,10.5S4.7,21,10.5,21S21,16.3,21,10.5S16.3,0,10.5,0z M15.3,15.8H5.7v-1.2h9.6V15.8z M15.3,13.4H5.7v-1.2h9.6V13.4z M15.3,11H5.7V9.8h9.6V11z M15.3,8.6H5.7V7.4h9.6V8.6z",
+  fillColor: "#FF0000",
+  fillOpacity: 1,
+  strokeWeight: 0,
+  scale: 1.5
+};
+
+// Add interface for McDonald's location
+interface McdonaldsLocation {
+  lat: number;
+  lng: number;
+}
+
+// Add new interface for coordinates
+interface RouteCoordinate {
+  lat: number;
+  lng: number;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [mcdonaldsLocations, setMcdonaldsLocations] = useState<McdonaldsLocation[]>([]);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [gameActive, setGameActive] = useState(false);
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [routeCoordinates, setRouteCoordinates] = useState<RouteCoordinate[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add ref for the map element
+  const mapRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // Wait for custom elements to be defined
+    if (mapRef.current) {
+      customElements.whenDefined('gmp-map-3d').then(() => {
+        // Initialize map settings here if needed
+      });
+    }
+  }, []);
+
+  const startGame = async () => {
+    if (!origin || !destination) return;
+
+    setGameActive(true);
+    setTimeLeft(60);
+    setScore(0);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current as NodeJS.Timeout);
+          setGameActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleMarkerClick = (index: number) => {
+    if (!gameActive) return;
+
+    setScore(prev => prev + 1);
+    setMcdonaldsLocations(prev =>
+      prev.filter((_, idx) => idx !== index)
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Mock route coordinates (replace with actual API call)
+    const mockRoute = [
+      { lat: 40.7128, lng: -74.006 },
+      { lat: 40.7580, lng: -73.9855 },
+      // Add more coordinates as needed
+    ];
+    setRouteCoordinates(mockRoute);
+
+    // Here you would make API calls to:
+    // 1. Get directions
+    // 2. Search for McDonald's along the route
+    // For demo, using mock data:
+    const mockLocations = [
+      { lat: 40.7128, lng: -74.006 },
+      { lat: 40.7580, lng: -73.9855 },
+      // Add more mock locations
+    ];
+    setMcdonaldsLocations(mockLocations);
+    startGame();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="p-4">
+      {/* Add the Maps JavaScript API script */}
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d`}
+        strategy="afterInteractive"
+      />
+
+      <div className="mb-4">
+        <form onSubmit={handleSubmit} className="flex gap-4">
+          <input
+            type="text"
+            value={origin}
+            onChange={(e) => setOrigin(e.target.value)}
+            placeholder="Origin"
+            className="border p-2"
+          />
+          <input
+            type="text"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder="Destination"
+            className="border p-2"
+          />
+          <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+            Start Game
+          </button>
+        </form>
+      </div>
+
+      <div className="mb-4">
+        <p>Time Left: {timeLeft}s</p>
+        <p>Score: {score}</p>
+      </div>
+
+      <style jsx>{`
+        gmp-map-3d {
+          width: 100%;
+          height: 80vh;
+          display: block;
+        }
+      `}</style>
+
+      <gmp-map-3d
+        ref={mapRef}
+        center="37.819852, -122.478549"
+        tilt="67.5"
+        zoom="15"
+      >
+        {/* Markers will need to be added as gmp-advanced-marker elements */}
+      </gmp-map-3d>
+
+      {!gameActive && score > 0 && (
+        <div className="mt-4 p-4 bg-green-100 rounded">
+          <h2>Game Over!</h2>
+          <p>Your score: {score}</p>
+          <p>Voucher Code: MCDGAME{score}2024</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
+  );
+}
+{
+  isLoaded && (
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={{ lat: 40.7128, lng: -74.006 }}
+      zoom={12}
+      onLoad={(map: google.maps.Map) => {
+        setMap(map);
+        // Enable 45-degree imagery
+        map.setTilt(45);
+      }}
+      options={{
+        mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID, // Add your photorealistic map ID
+        tilt: 45,
+        heading: 25,
+        mapTypeId: 'satellite',
+        disableDefaultUI: false,
+      }}
+    >
+      {routeCoordinates.length > 0 && (
+        <Polyline
+          path={routeCoordinates}
+          options={{
+            strokeColor: '#1966D2',
+            strokeOpacity: 0.75,
+            strokeWeight: 10,
+          }}
+        />
+      )}
+      {mcdonaldsLocations.map((location, index) => (
+        <Marker
+          key={index}
+          position={location}
+          icon={mcdonaldsIcon}
+          onClick={() => handleMarkerClick(index)}
+        />
+      ))}
+    </GoogleMap>
+  )
+}
+
+{
+  !gameActive && score > 0 && (
+    <div className="mt-4 p-4 bg-green-100 rounded">
+      <h2>Game Over!</h2>
+      <p>Your score: {score}</p>
+      <p>Voucher Code: MCDGAME{score}2024</p>
+    </div>
+  )
+}
+    </div >
   );
 }
