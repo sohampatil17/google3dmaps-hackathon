@@ -3,6 +3,36 @@
 import { useState, useEffect, useRef } from 'react';
 import Script from 'next/script';
 
+// Declare the custom elements for TypeScript
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'gmp-map-3d': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          center?: string;
+          zoom?: string;
+          tilt?: string;
+        },
+        HTMLElement
+      >;
+      'gmp-advanced-marker': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          position?: string;
+        },
+        HTMLElement
+      >;
+      'gmp-polyline-3d': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          'altitude-mode'?: string;
+          'stroke-color'?: string;
+          'stroke-width'?: string;
+        },
+        HTMLElement
+      >;
+    }
+  }
+}
+
 const containerStyle = {
   width: '100%',
   height: '80vh'
@@ -29,9 +59,6 @@ interface RouteCoordinate {
 }
 
 export default function Home() {
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-  const [mcdonaldsLocations, setMcdonaldsLocations] = useState<McdonaldsLocation[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameActive, setGameActive] = useState(false);
@@ -39,19 +66,23 @@ export default function Home() {
   const [destination, setDestination] = useState("");
   const [routeCoordinates, setRouteCoordinates] = useState<RouteCoordinate[]>([]);
 
+  const mapRef = useRef<HTMLElement | null>(null);
+  const polylineRef = useRef<HTMLElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Add ref for the map element
-  const mapRef = useRef<HTMLElement | null>(null);
-
   useEffect(() => {
-    // Wait for custom elements to be defined
-    if (mapRef.current) {
+    if (mapRef.current && polylineRef.current) {
       customElements.whenDefined('gmp-map-3d').then(() => {
-        // Initialize map settings here if needed
+        // Map is ready
+      });
+
+      customElements.whenDefined('gmp-polyline-3d').then(() => {
+        if (polylineRef.current && routeCoordinates.length > 0) {
+          (polylineRef.current as any).coordinates = routeCoordinates;
+        }
       });
     }
-  }, []);
+  }, [routeCoordinates]);
 
   const startGame = async () => {
     if (!origin || !destination) return;
@@ -112,7 +143,6 @@ export default function Home() {
 
   return (
     <div className="p-4">
-      {/* Add the Maps JavaScript API script */}
       <Script
         src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&v=alpha&libraries=maps3d`}
         strategy="afterInteractive"
@@ -159,7 +189,12 @@ export default function Home() {
         tilt="67.5"
         zoom="15"
       >
-        {/* Markers will need to be added as gmp-advanced-marker elements */}
+        <gmp-polyline-3d
+          ref={polylineRef}
+          altitude-mode="relative-to-ground"
+          stroke-color="rgba(25, 102, 210, 0.75)"
+          stroke-width="10"
+        />
       </gmp-map-3d>
 
       {!gameActive && score > 0 && (
@@ -170,58 +205,5 @@ export default function Home() {
         </div>
       )}
     </div>
-  );
-}
-{
-  isLoaded && (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={{ lat: 40.7128, lng: -74.006 }}
-      zoom={12}
-      onLoad={(map: google.maps.Map) => {
-        setMap(map);
-        // Enable 45-degree imagery
-        map.setTilt(45);
-      }}
-      options={{
-        mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID, // Add your photorealistic map ID
-        tilt: 45,
-        heading: 25,
-        mapTypeId: 'satellite',
-        disableDefaultUI: false,
-      }}
-    >
-      {routeCoordinates.length > 0 && (
-        <Polyline
-          path={routeCoordinates}
-          options={{
-            strokeColor: '#1966D2',
-            strokeOpacity: 0.75,
-            strokeWeight: 10,
-          }}
-        />
-      )}
-      {mcdonaldsLocations.map((location, index) => (
-        <Marker
-          key={index}
-          position={location}
-          icon={mcdonaldsIcon}
-          onClick={() => handleMarkerClick(index)}
-        />
-      ))}
-    </GoogleMap>
-  )
-}
-
-{
-  !gameActive && score > 0 && (
-    <div className="mt-4 p-4 bg-green-100 rounded">
-      <h2>Game Over!</h2>
-      <p>Your score: {score}</p>
-      <p>Voucher Code: MCDGAME{score}2024</p>
-    </div>
-  )
-}
-    </div >
   );
 }
